@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"mydb/configuration"
-	"mydb/server"
 	"os"
+	"your_network/configuration"
+	"your_network/server"
 
 	"github.com/urfave/cli"
 )

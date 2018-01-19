@@ -4,17 +4,17 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"mydb/configuration"
 	"net"
 	"os"
 	"strings"
+	"your_network/configuration"
 )
 
 var cluster Cluster
 var config configuration.Configuration
 
-func Start(config configuration.Configuration) {
-	config = config
+func Start(conf configuration.Configuration) {
+	config = conf
 	fmt.Println("Starting Server on Port: " + config.Port)
 	var listener, err = ListenerInterface(config.Port)
 	if err != nil {
