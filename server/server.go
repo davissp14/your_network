@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
+	"strings"
 	"your_network/configuration"
 )
 
@@ -69,30 +71,47 @@ func handleConn(conn net.Conn) {
 			cluster = cluster.addMember(member)
 			fmt.Printf("\n%s has joined the cluster.\n", member.Hostname)
 			conn.Close()
-		// case "sharedFiles":
-		// 	if len(dataMap) == 3 {
-		// 		member, err := cluster.FindMember(dataMap[1], dataMap[2])
-		// 		if err != nil {
-		// 			fmt.Printf("Member does not belong to cluster! %s", err)
-		// 			return
-		// 		}
-		// 		member.Message(fmt.Sprintf("returnFileList %s %s", dataMap[1], dataMap[2]))
-		// 	}
-		// case "returnFileList":
-		// 	var files []string
-		// 	member, err := cluster.FindMember(dataMap[1], dataMap[2])
-		// 	root := config.SharedDirectory
-		// 	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		// 		files = append(files, path)
-		// 		return nil
-		// 	})
-		// 	if err != nil {
-		// 		panic(err)
-		// 	}
-		// 	member.Message(fmt.Sprintf("listFiles %s %s", dataMap[1], dataMap[2]))
-		//
-		// case "listFiles":
-		// 	fmt.Println(data)
+		case "sharedFiles":
+			if !cluster.MemberExists(req.Target) {
+				fmt.Println("Target must be in your network!")
+				conn.Close()
+			}
+			member, err := cluster.FindMember(req.Target)
+			if err != nil {
+				fmt.Printf("Member does not belong to cluster! %s", err)
+				return
+			}
+			sfReq := Request{
+				Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+				Target:  req.Target,
+				Command: "returnFileList",
+			}
+			member.SendRequest(sfReq)
+			conn.Close()
+
+		case "returnFileList":
+			var files []string
+			root := config.SharedDirectory
+			err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+				if info.IsDir() {
+					return nil
+				}
+				files = append(files, path)
+				return nil
+			})
+			if err != nil {
+				panic(err)
+			}
+			lfReq := Request{
+				Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+				Target:  req.Source,
+				Command: "listFiles",
+				Body:    strings.Join(files, ","),
+			}
+			lfReq.Send()
+
+		case "listFiles":
+			fmt.Println(req.Body)
 		case "listNodes":
 			fmt.Println(cluster.MemberHosts())
 			conn.Close()

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 )
 
 type Message struct {
@@ -48,8 +47,7 @@ func (c Cluster) MemberHosts() []string {
 	return list
 }
 
-func (c Cluster) FindMember(host, port string) (Member, error) {
-	hostname := strings.TrimSpace(fmt.Sprintf("%s:%s", host, port))
+func (c Cluster) FindMember(hostname string) (Member, error) {
 	for _, m := range c.Members {
 		if m.Hostname == hostname {
 			return m, nil

@@ -11,6 +11,7 @@ type Request struct {
 	Source  string `json:"source"`
 	Target  string `json:"target"`
 	Command string `json:"command"`
+	Body    string `json:"body"`
 	Success bool   `json:"success"`
 }
 
