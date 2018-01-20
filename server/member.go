@@ -12,8 +12,8 @@ type Member struct {
 	Conn     net.Conn
 }
 
-func NewMember(host, port string) (Member, error) {
-	uri := strings.TrimSpace(fmt.Sprintf("%s:%s", host, port))
+func NewMember(target string) (Member, error) {
+	uri := strings.TrimSpace(target)
 	conn, err := net.Dial("tcp4", uri)
 	if err != nil {
 		return Member{}, err

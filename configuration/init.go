@@ -11,6 +11,7 @@ type Configuration struct {
 	Hostname          string `json:"hostname"`
 	Port              string `json:"port"`
 	EnableFileSharing bool   `json:"enable_file_sharing"`
+	SharedDirectory   string `json:"shared_directory"`
 	EnableProfile     bool   `json:"enable_profile"`
 }
 
@@ -20,6 +21,7 @@ func Init() {
 		Port:              "4000",
 		EnableFileSharing: false,
 		EnableProfile:     false,
+		SharedDirectory:   "",
 	}
 	configJSON, _ := json.Marshal(config)
 	err := ioutil.WriteFile("config.json", configJSON, 0644)

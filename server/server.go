@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"your_network/configuration"
 )
 
@@ -38,61 +37,72 @@ func handleConn(conn net.Conn) {
 		if data == "" {
 			break
 		}
-		dataMap := strings.Split(data, " ")
-		switch strings.TrimSpace(dataMap[0]) {
+		req, err := ParseRequest(data)
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		switch req.Command {
 		case "addMember":
-			if len(dataMap) == 3 {
-				member, err := NewMember(dataMap[1], dataMap[2])
-				if err != nil {
-					fmt.Printf("Error occurred while adding member %s", err)
-					return
+			if !cluster.MemberExists(req.Target) {
+				addReq := Request{
+					Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+					Target:  req.Target,
+					Command: "addAck",
 				}
-				if !cluster.MemberExists(member) {
-					fmt.Printf("Attempting to reach `%s`.", member.Hostname)
-					member.Message(fmt.Sprintf("addAck %s %s", config.Hostname, config.Port))
-					member.Conn.Close()
-				} else {
-					fmt.Printf("%s is already a member.", member.Hostname)
-				}
+				fmt.Printf("Attempting to reach `%s`.", req.Target)
+				addReq.Send()
 			} else {
-				fmt.Println("Usage: `addMember localhost <port>`")
+				fmt.Printf("%s is already a member.", req.Target)
 			}
 			conn.Close()
 		case "addAck":
-			if len(dataMap) == 3 {
-				member, err := NewMember(dataMap[1], dataMap[2])
-				if err != nil {
-					fmt.Printf("Error occurred while adding member %s", err)
-					return
-				}
-				fmt.Printf("%s established a connection with you. Success!", member.Hostname)
-				member.Message(fmt.Sprintf("addAccept %s %s", config.Hostname, config.Port))
-				member.Conn.Close()
-			} else {
-				fmt.Println("I'm down to pair, but you need to send me the right shit.")
+			ackReq := Request{
+				Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+				Target:  req.Source,
+				Command: "addAccept",
 			}
-			conn.Close()
+			fmt.Printf("%s established a connection with you.\n", req.Source)
+			ackReq.Send()
 		case "addAccept":
-			if len(dataMap) == 3 {
-				member, err := NewMember(dataMap[1], dataMap[2])
-				if err != nil {
-					fmt.Printf("Error occurred while adding member %s", err)
-					return
-				}
-				cluster = cluster.addMember(member)
-				fmt.Printf("\n%s has joined the cluster.", member.Hostname)
-			} else {
-				fmt.Println("Accept message is invalid!")
-			}
+			member, _ := NewMember(req.Source)
+			cluster = cluster.addMember(member)
+			fmt.Printf("\n%s has joined the cluster.\n", member.Hostname)
 			conn.Close()
-		case "message":
-			fmt.Println(len(cluster.Members))
-			cluster.Communicate("received\n")
+		// case "sharedFiles":
+		// 	if len(dataMap) == 3 {
+		// 		member, err := cluster.FindMember(dataMap[1], dataMap[2])
+		// 		if err != nil {
+		// 			fmt.Printf("Member does not belong to cluster! %s", err)
+		// 			return
+		// 		}
+		// 		member.Message(fmt.Sprintf("returnFileList %s %s", dataMap[1], dataMap[2]))
+		// 	}
+		// case "returnFileList":
+		// 	var files []string
+		// 	member, err := cluster.FindMember(dataMap[1], dataMap[2])
+		// 	root := config.SharedDirectory
+		// 	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		// 		files = append(files, path)
+		// 		return nil
+		// 	})
+		// 	if err != nil {
+		// 		panic(err)
+		// 	}
+		// 	member.Message(fmt.Sprintf("listFiles %s %s", dataMap[1], dataMap[2]))
+		//
+		// case "listFiles":
+		// 	fmt.Println(data)
+		case "listNodes":
+			fmt.Println(cluster.MemberHosts())
 			conn.Close()
-		case "received":
-			fmt.Println("Wave")
+		case "ping":
+			cluster.Ping()
+			conn.Close()
+		case "pong":
+			fmt.Println("PONG")
 		default:
-			fmt.Println(data)
+			fmt.Printf("DAta: `%s`", req.String())
 			conn.Close()
 		}
 	}
