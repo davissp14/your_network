@@ -1,4 +1,4 @@
-package server
+package network
 
 import (
 	"bufio"
@@ -11,6 +11,8 @@ type Request struct {
 	Source  string `json:"source"`
 	Target  string `json:"target"`
 	Command string `json:"command"`
+	Args    string `json:"args"`
+	State   string `json:"state"`
 	Body    string `json:"body"`
 	Success bool   `json:"success"`
 }
@@ -23,6 +25,9 @@ func (r Request) String() string {
 func ParseRequest(raw string) (Request, error) {
 	var req Request
 	json.Unmarshal([]byte(raw), &req)
+	if req.State == "" {
+		req.State = "new"
+	}
 	return req, nil
 }
 

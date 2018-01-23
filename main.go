@@ -10,7 +10,6 @@ import (
 )
 
 func main() {
-
 	app := cli.NewApp()
 	cli.AppHelpTemplate = cliTemplate()
 	app.Name = "YourNetwork"
