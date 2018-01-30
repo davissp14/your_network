@@ -5,38 +5,41 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 )
 
 type Configuration struct {
-	Hostname          string `json:"hostname"`
-	Port              string `json:"port"`
-	EnableFileSharing bool   `json:"enable_file_sharing"`
-	SharedDirectory   string `json:"shared_directory"`
-	EnableProfile     bool   `json:"enable_profile"`
+	Hostname        string `json:"hostname"`
+	Port            string `json:"port"`
+	SharedDirectory string `json:"shared_directory"`
 }
 
-func Init() {
+const SHARED_DIR = "./shared"
+
+func Init() error {
 	config := Configuration{
-		Hostname:          "localhost",
-		Port:              "4000",
-		EnableFileSharing: false,
-		EnableProfile:     false,
-		SharedDirectory:   "",
+		Hostname:        "127.0.0.1",
+		Port:            "4000",
+		SharedDirectory: SHARED_DIR,
 	}
-	configJSON, _ := json.Marshal(config)
+	configJSON, _ := json.MarshalIndent(config, "", "  ")
 	err := ioutil.WriteFile("config.json", configJSON, 0644)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
-	fmt.Println("Generated configuration file `config.json`.")
+	if _, err := os.Stat(SHARED_DIR); os.IsNotExist(err) {
+		err = os.MkdirAll(SHARED_DIR, 0755)
+		if err != nil {
+			fmt.Println("Failed to create shared directory!")
+		}
+	}
+	return nil
 }
 
 func Load(path_to_config string) (Configuration, error) {
 	raw, err := ioutil.ReadFile(path_to_config)
 	var config Configuration
 	if err != nil {
-		fmt.Println(err)
 		return config, errors.New(err.Error())
 	}
 	json.Unmarshal(raw, &config)

@@ -15,7 +15,7 @@ import (
 const NETWORKFILE = "./network.json"
 
 type Network struct {
-	Nodes []Node
+	Nodes []Node `json:"nodes"`
 }
 
 func (n Network) Init(config configuration.Configuration) {
@@ -42,8 +42,6 @@ func Load(n Network, config configuration.Configuration) {
 	}
 	json.Unmarshal(raw, &n)
 	for _, node := range n.Nodes {
-		fmt.Println(node.Hostname)
-		fmt.Println(config.Hostname)
 		req := Request{
 			Source:  node.Hostname,
 			Target:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
@@ -72,7 +70,7 @@ func (n Network) Update() Network {
 
 func (n Network) FindNode(target string) (Node, error) {
 	for _, nNode := range n.Nodes {
-		// fmt.Printf("%s == %s", nNode.Hostname, target)
+		// fmt.Printf("`%s` == `%s`", nNode.Hostname, target)
 		if nNode.Hostname == target {
 			return nNode, nil
 		}
@@ -89,11 +87,23 @@ func (n Network) NodeExists(target string) bool {
 	return false
 }
 
+func (n Network) AddNodeOnExisting(conn net.Conn, hostname string) Network {
+	uri := strings.TrimSpace(hostname)
+	node := Node{
+		Hostname: uri,
+		Conn:     conn,
+	}
+	n.Nodes = append(n.Nodes, node)
+	n.Update()
+	return n
+}
+
 func (n Network) AddNode(hostname string) Network {
 	uri := strings.TrimSpace(hostname)
 	conn, err := net.Dial("tcp4", uri)
 	if err != nil {
-		return n
+		fmt.Printf("\nFailed to establish connection with %s", uri)
+		os.Exit(1)
 	}
 	node := Node{
 		Hostname: hostname,
@@ -104,11 +114,6 @@ func (n Network) AddNode(hostname string) Network {
 	return n
 }
 
-// func (c Cluster) addMember(member Member) Cluster {
-// 	c.Members = append(c.Members, member)
-// 	return c
-// }
-//
 func (n Network) Ping() {
 	for _, node := range n.Nodes {
 		req := Request{

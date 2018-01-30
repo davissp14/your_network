@@ -9,9 +9,9 @@ import (
 )
 
 type Node struct {
-	Hostname  string `json:"hostname"`
-	PublicKey string `json:"public_key"`
-	Conn      net.Conn
+	Hostname  string   `json:"hostname"`
+	PublicKey string   `json:"-"`
+	Conn      net.Conn `json:"-"`
 }
 
 func NewNode(target string) (Node, error) {

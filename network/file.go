@@ -10,13 +10,19 @@ import (
 	"strings"
 )
 
+type SharedFileList struct {
+	Files []string `json:"shared_files"`
+}
+
 func ListFiles(dir string) []string {
 	var files []string
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
-		files = append(files, filepath.Clean(path))
+		f := strings.Split(path, "/")[1:]
+		p := strings.Join(f, "/")
+		files = append(files, p)
 		return nil
 	})
 	if err != nil {
@@ -29,7 +35,8 @@ const BUFFERSIZE = 1024
 
 func Download(node Node, req Request, shared_dir string) {
 	connection := node.Conn
-	node.SendRequest(req)
+
+	req.SendOnExisting(connection)
 	bufferFileName := make([]byte, 64)
 	bufferFileSize := make([]byte, 10)
 
@@ -87,20 +94,8 @@ func SendFileToClient(connection net.Conn, req Request, pathToFile string) {
 	fmt.Printf("\nSending file `%s` (%s Bytes)", fN, fS)
 
 	gofuncs := int64(16)
-	// var start, end int64
-	// size, _ := strconv.Atoi(fS)
-	//
-	// partialSize := (int64(size) / gofuncs)
-	// diff := int64(size) % gofuncs
 
 	for num := int64(0); num < gofuncs; num++ {
-
-		// if num == gofuncs {
-		// 	end := fileSize
-		// } else {
-		// 	end := start + partialSize
-		// }
-
 		go func(conn net.Conn) {
 			sendBuffer := make([]byte, 4096)
 			for {
@@ -113,16 +108,7 @@ func SendFileToClient(connection net.Conn, req Request, pathToFile string) {
 		}(connection)
 
 	}
-
-	// sendBuffer := make([]byte, BUFFERSIZE)
-	// for {
-	// 	_, err = file.Read(sendBuffer)
-	// 	if err == io.EOF {
-	// 		break
-	// 	}
-	// 	connection.Write(sendBuffer)
-	// }
-	fmt.Printf("\nSuccessfully sent `%s`!", fN)
+	// fmt.Printf("\nSuccessfully sent `%s`!", fN)
 	return
 }
 

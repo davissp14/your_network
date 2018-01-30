@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -54,138 +55,176 @@ func handleConn(conn net.Conn) {
 		case "init_connection":
 			mynetwork = mynetwork.AddNode(req.Target)
 			conn.Close()
+
 		// Will work to pair with a remote network.
 		case "membershipRequest":
 			switch req.State {
-			case "new":
-				memReq := network.Request{
-					Target:  req.Target,
-					Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
-					Command: "membershipRequest",
-					State:   "request",
-				}
-				memReq.Send()
-				conn.Close()
 			case "request":
-				memReq := network.Request{
-					Target:  req.Source,
-					Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
-					Command: "membershipRequest",
-					State:   "response",
-					Success: true,
-				}
-				if !mynetwork.NodeExists(req.Source) {
-					mynetwork = mynetwork.AddNode(req.Source)
-				}
-				node, err := mynetwork.FindNode(req.Source)
-				if err != nil {
-					fmt.Println(err)
-				}
-				fmt.Printf("\nYou and `%s` have been paired!", req.Source)
-				node.SendRequest(memReq)
-				conn.Close()
-
-			case "response":
-				if req.Success {
-					mynetwork = mynetwork.AddNode(req.Source)
-					fmt.Printf("\nYou and `%s` have been paired!", req.Source)
-				} else {
-					fmt.Println("Failed to add Node! :(")
-				}
-			}
-		// Lists all of the nodes in the network.
-		case "listNodes":
-			for _, node := range mynetwork.Nodes {
-				fmt.Printf("\nHostname: %s", node.Hostname)
-			}
-			conn.Close()
-		// Lists the shared files on a remote node.
-		case "listFiles":
-			switch req.State {
-			case "new":
-				node, err := mynetwork.FindNode(req.Target)
-				if err != nil {
-					fmt.Printf("`%s` is not in your network.", req.Target)
+				response := network.Request{}
+				if req.Source == req.CommandTarget {
+					response.Success = false
+					response.Body = "There's no need to add yourself."
+					response.SendOnExisting(conn)
 					conn.Close()
 					return
 				}
-				listReq := network.Request{
-					Target:  req.Target,
-					Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
-					Command: "listFiles",
-					State:   "request",
+				memReq := network.Request{
+					Target:  req.CommandTarget,
+					Source:  req.Source,
+					Command: "membershipRequest",
+					State:   "response",
 				}
-				node.SendRequest(listReq)
-				conn.Close()
-			case "request":
-				node, err := mynetwork.FindNode(req.Source)
+				memConn, err := memReq.BlockingSend()
 				if err != nil {
-					fmt.Printf("`%s` is not in your network.", req.Source)
+					response.Success = false
+					response.Body = fmt.Sprintf("Failed to send request to %s", req.CommandTarget)
+					response.SendOnExisting(conn)
+					conn.Close()
+					return
+				}
+				resReq := memReq.BlockingRead(memConn)
+				if resReq.Success {
+					mynetwork = mynetwork.AddNodeOnExisting(memConn, req.CommandTarget)
+					fmt.Printf("`%s` joined your network!\n", req.CommandTarget)
+					networkJSON, _ := json.Marshal(mynetwork)
+					response.Success = true
+					response.Body = string(networkJSON)
+				} else {
+					response.Success = false
+					response.Body = resReq.Body
+				}
+				response.SendOnExisting(conn)
+				conn.Close() // Close Client Connection
+			case "response":
+				response := network.Request{}
+				if !mynetwork.NodeExists(req.Source) {
+					mynetwork = mynetwork.AddNode(req.Source)
+					fmt.Printf("`%s` joined your network!\n", req.Source)
+					networkJSON, _ := json.Marshal(mynetwork)
+					response.Success = true
+					response.Body = string(networkJSON)
+				} else {
+					fmt.Printf("%s is already part of your network!\n", req.Source)
+					response.Success = false
+					response.Body = "Node is already part of your network!"
+				}
+				response.SendOnExisting(conn)
+			}
+			// Lists all of the nodes in the network.
+		case "listNodes":
+			networkJSON, _ := json.MarshalIndent(mynetwork, "", "  ")
+			listNodes := network.Request{
+				Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+				Success: true,
+				Body:    string(networkJSON),
+			}
+			listNodes.SendOnExisting(conn)
+			conn.Close() // Close Client connection
+
+		case "ping":
+			switch req.State {
+			case "request":
+				response := network.Request{}
+				if !mynetwork.NodeExists(req.CommandTarget) {
+					response.Success = false
+					response.Body = fmt.Sprintf("%s isn't in your network.", req.CommandTarget)
+					response.SendOnExisting(conn)
+					conn.Close()
+					return
+				} else {
+					pingReq := network.Request{
+						Target:  req.CommandTarget,
+						Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+						Command: "ping",
+						State:   "response",
+					}
+					node, _ := mynetwork.FindNode(req.CommandTarget)
+					pingReq.SendOnExisting(node.Conn)
+					reqRes := pingReq.BlockingRead(node.Conn)
+					response.Success = true
+					response.Body = reqRes.Body
+					response.SendOnExisting(conn)
 					conn.Close()
 				}
-				files := network.ListFiles(config.SharedDirectory)
-				lfReq := network.Request{
-					Target:  req.Source,
-					Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
-					Command: "listFiles",
-					State:   "response",
-					Body:    strings.Join(files, ","),
+			case "response":
+				resp := network.Request{
+					Source:  req.Target,
+					Body:    "PONG",
 					Success: true,
 				}
-				node.SendRequest(lfReq)
-
-			case "response":
-				files := strings.Split(req.Body, ",")
-				fmt.Printf("\n`%s` - Shared Files \n", req.Source)
-				for _, file := range files {
-					fmt.Println(file)
+				resp.SendOnExisting(conn)
+			}
+		// Lists the shared files on a remote node.
+		case "listFiles":
+			switch req.State {
+			case "request":
+				response := network.Request{}
+				if !mynetwork.NodeExists(req.CommandTarget) {
+					response.Success = false
+					response.Body = fmt.Sprintf("%s isn't in your network.", req.CommandTarget)
+					response.SendOnExisting(conn)
+					conn.Close()
+				} else {
+					node, _ := mynetwork.FindNode(req.CommandTarget)
+					listReq := network.Request{
+						Target:  req.CommandTarget,
+						Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+						Command: "listFiles",
+						State:   "response",
+					}
+					listReq.SendOnExisting(node.Conn)
+					reqRes := listReq.BlockingRead(node.Conn)
+					response.Success = true
+					response.Body = reqRes.Body
+					response.SendOnExisting(conn)
+					conn.Close()
 				}
+			case "response":
+				files := network.ListFiles(config.SharedDirectory)
+				var shared_files network.SharedFileList
+				for _, file := range files {
+					shared_files.Files = append(shared_files.Files, file)
+				}
+				fileJSON, _ := json.MarshalIndent(shared_files, "", "  ")
+				response := network.Request{
+					Source:  req.Target,
+					Success: true,
+					Body:    string(fileJSON),
+				}
+				response.SendOnExisting(conn)
 			}
 		case "download":
 			switch req.State {
-			case "new":
-				node, err := mynetwork.FindNode(req.Target)
+			case "request":
+				response := network.Request{}
+				node, err := mynetwork.FindNode(req.CommandTarget)
 				if err != nil {
-					fmt.Println("Unable to find Node!")
+					response.Body = "Node is not in your network"
+					response.Success = false
+					response.SendOnExisting(conn)
 					conn.Close()
+					return
 				}
-				shared_dir := config.SharedDirectory
 				dReq := network.Request{
 					Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
-					Target:  req.Target,
+					Target:  req.CommandTarget,
 					Command: "download",
 					State:   "response",
 					Args:    req.Args,
 				}
 				fmt.Printf("\nSending using Conn: %s", node.Conn.LocalAddr())
-				network.Download(node, dReq, shared_dir)
+				network.Download(node, dReq, config.SharedDirectory)
+				response.Success = true
+				response.Body = fmt.Sprintf("Successfully downloaded file `%s`", req.Args)
+				response.SendOnExisting(conn)
 				conn.Close()
 			case "response":
-				// node, err := mynetwork.FindNode(req.Source)
-				// if err != nil {
-				// 	fmt.Println("Unable to find Node!")
-				// 	return
-				// }
 				fileName := strings.TrimSpace(req.Args)
 				shared_dir := config.SharedDirectory
 				path_to_file := fmt.Sprintf("%s/%s", shared_dir, fileName)
-				fmt.Printf("\nSending Response using Conn: %s", conn.RemoteAddr())
 				network.SendFileToClient(conn, req, path_to_file)
 				// conn.Close()
 			}
-		case "ping":
-			for _, node := range mynetwork.Nodes {
-				pingReq := network.Request{
-					Target:  node.Hostname,
-					Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
-					Command: "pong",
-					State:   "new",
-				}
-				node.SendRequest(pingReq)
-			}
-			conn.Close()
-		case "pong":
-			fmt.Println("PONG")
 		default:
 			fmt.Printf("DAta: `%s`", req.String())
 			conn.Close()
