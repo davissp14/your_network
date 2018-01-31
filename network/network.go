@@ -1,7 +1,6 @@
 package network
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,10 +14,11 @@ import (
 const NETWORKFILE = "./network.json"
 
 type Network struct {
-	Nodes []Node `json:"nodes"`
+	Nodes  []Node                      `json:"nodes"`
+	Config configuration.Configuration `json:"-"`
 }
 
-func (n Network) Init(config configuration.Configuration) {
+func (n Network) Init() {
 	if _, err := os.Stat(NETWORKFILE); os.IsNotExist(err) {
 		fmt.Println("No network found. Initiating network.", NETWORKFILE)
 		networkJSON, _ := json.Marshal(n)
@@ -30,7 +30,7 @@ func (n Network) Init(config configuration.Configuration) {
 		fmt.Println("Network established...")
 	} else {
 		fmt.Println("Loading existing network...")
-		Load(n, config)
+		Load(n, n.Config)
 	}
 }
 
@@ -47,7 +47,7 @@ func Load(n Network, config configuration.Configuration) {
 			Target:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
 			Command: "init_connection",
 		}
-		req.Send()
+		req.BlockingSend()
 		// conn, err := net.Dial("tcp4", node.Hostname)
 		// if err != nil {
 		// 	fmt.Printf("\nFailed to establish connection with %s", node.Hostname)
@@ -70,7 +70,6 @@ func (n Network) Update() Network {
 
 func (n Network) FindNode(target string) (Node, error) {
 	for _, nNode := range n.Nodes {
-		// fmt.Printf("`%s` == `%s`", nNode.Hostname, target)
 		if nNode.Hostname == target {
 			return nNode, nil
 		}
@@ -80,6 +79,7 @@ func (n Network) FindNode(target string) (Node, error) {
 
 func (n Network) NodeExists(target string) bool {
 	for _, nNode := range n.Nodes {
+		fmt.Printf("`%s` == `%s`", nNode.Hostname, target)
 		if nNode.Hostname == target {
 			return true
 		}
@@ -112,22 +112,6 @@ func (n Network) AddNode(hostname string) Network {
 	n.Nodes = append(n.Nodes, node)
 	n.Update()
 	return n
-}
-
-func (n Network) Ping() {
-	for _, node := range n.Nodes {
-		req := Request{
-			Target:  node.Hostname,
-			Command: "pong",
-		}
-		json, _ := json.Marshal(req)
-		writer := bufio.NewWriter(node.Conn)
-		fmt.Fprintln(writer, string(json))
-		err := writer.Flush()
-		if err != nil {
-			fmt.Printf("Failed to flush write to %s: Error: %s", node.Hostname, err)
-		}
-	}
 }
 
 //

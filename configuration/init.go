@@ -22,6 +22,8 @@ func Init() error {
 		Port:            "4000",
 		SharedDirectory: SHARED_DIR,
 	}
+	fmt.Println("Creating `config.json` file.")
+	fmt.Println("Creating `./shared` directory.")
 	configJSON, _ := json.MarshalIndent(config, "", "  ")
 	err := ioutil.WriteFile("config.json", configJSON, 0644)
 	if err != nil {

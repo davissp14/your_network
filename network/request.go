@@ -61,21 +61,6 @@ func (r Request) BlockingRead(conn net.Conn) Request {
 	return req
 }
 
-func (r Request) Send() {
-	json, _ := json.Marshal(r)
-	conn, err := net.Dial("tcp", r.Target)
-	if err != nil {
-		fmt.Println(err)
-	}
-	writer := bufio.NewWriter(conn)
-	fmt.Fprintln(writer, string(json))
-	err = writer.Flush()
-	if err != nil {
-		fmt.Printf("Failed to flush write to %s: Error: %s", r.Target, err)
-	}
-	conn.Close()
-}
-
 func (r Request) SendOnExisting(conn net.Conn) {
 	json, _ := json.Marshal(r)
 	writer := bufio.NewWriter(conn)

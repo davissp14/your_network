@@ -17,10 +17,13 @@ func (c Client) StartServer() {
 }
 
 func (c Client) AddNode(target string) {
+	if c.Self() == target {
+		fmt.Println("Why are you trying to add yourself?")
+		os.Exit(1)
+	}
 	memReq := network.Request{
-		Target:        c.SourceName(),
+		Target:        c.Self(),
 		CommandTarget: target,
-		Source:        c.SourceName(),
 		Command:       "membershipRequest",
 		State:         "request",
 	}
@@ -35,7 +38,7 @@ func (c Client) AddNode(target string) {
 
 func (c Client) ListNodes() {
 	listReq := network.Request{
-		Target:  c.SourceName(),
+		Target:  c.Self(),
 		Command: "listNodes",
 	}
 	conn, err := listReq.BlockingSend()
@@ -49,9 +52,8 @@ func (c Client) ListNodes() {
 
 func (c Client) ListFiles(hostname string) {
 	listReq := network.Request{
-		Target:        c.SourceName(),
+		Target:        c.Self(),
 		CommandTarget: hostname,
-		Source:        c.SourceName(),
 		Command:       "listFiles",
 		State:         "request",
 	}
@@ -66,8 +68,7 @@ func (c Client) ListFiles(hostname string) {
 
 func (c Client) Download(target string, filename string) {
 	downloadReq := network.Request{
-		Source:        c.SourceName(),
-		Target:        c.SourceName(),
+		Target:        c.Self(),
 		CommandTarget: target,
 		Command:       "download",
 		State:         "request",
@@ -84,11 +85,10 @@ func (c Client) Download(target string, filename string) {
 
 func (c Client) Ping(target string) {
 	pingReq := network.Request{
-		Source:        c.SourceName(),
-		Target:        c.SourceName(),
+		Target:        c.Self(),
+		CommandTarget: target,
 		Command:       "ping",
 		State:         "request",
-		CommandTarget: target,
 	}
 	conn, err := pingReq.BlockingSend()
 	if err != nil {
@@ -97,8 +97,9 @@ func (c Client) Ping(target string) {
 	}
 	req := pingReq.BlockingRead(conn)
 	fmt.Println(req.Body)
+	// conn.Close()
 }
 
-func (c Client) SourceName() string {
+func (c Client) Self() string {
 	return fmt.Sprintf("%s:%s", c.Config.Hostname, c.Config.Port)
 }

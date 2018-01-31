@@ -1,34 +1,36 @@
 package network
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
 	"net"
-	"strings"
+	"time"
 )
 
 type Node struct {
 	Hostname  string   `json:"hostname"`
+	MacAddr   string   `json:"mac_addr"`
 	PublicKey string   `json:"-"`
 	Conn      net.Conn `json:"-"`
 }
 
-func NewNode(target string) (Node, error) {
-	uri := strings.TrimSpace(target)
-	conn, err := net.Dial("tcp4", uri)
-	if err != nil {
-		return Node{}, err
-	}
-	return Node{Hostname: uri, Conn: conn}, nil
-}
-
-func (n Node) SendRequest(req Request) {
-	json, _ := json.Marshal(req)
-	writer := bufio.NewWriter(n.Conn)
-	fmt.Fprintln(writer, string(json))
-	err := writer.Flush()
-	if err != nil {
-		fmt.Printf("Failed to flush write to %s: Error: %s", n.Hostname, err)
+func (n Node) Monitor(source string) {
+	for {
+		go func() {
+			pingReq := Request{
+				Source:        source,
+				CommandTarget: source,
+				Target:        n.Hostname,
+				Command:       "ping",
+				State:         "request",
+			}
+			pingReq.SendOnExisting(n.Conn)
+			req := pingReq.BlockingRead(n.Conn)
+			if req.Success {
+				fmt.Printf("PONG - %s (latency)\n", n.Hostname)
+			} else {
+				fmt.Println(req.Body)
+			}
+		}()
+		time.Sleep(5 * time.Second)
 	}
 }

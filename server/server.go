@@ -13,10 +13,9 @@ import (
 )
 
 var mynetwork network.Network
-var config configuration.Configuration
 
-func Start(conf configuration.Configuration) {
-	config = conf
+func Start(config configuration.Configuration) {
+	mynetwork.Config = config
 	fmt.Println("Starting Server on Port: " + config.Port)
 	var listener, err = ListenerInterface(config.Port)
 	if err != nil {
@@ -25,7 +24,7 @@ func Start(conf configuration.Configuration) {
 	}
 
 	// Initiate Network
-	// mynetwork.Init(config)
+	//mynetwork.Init()
 
 	for {
 		conn, err := listener.Accept()
@@ -61,16 +60,9 @@ func handleConn(conn net.Conn) {
 			switch req.State {
 			case "request":
 				response := network.Request{}
-				if req.Source == req.CommandTarget {
-					response.Success = false
-					response.Body = "There's no need to add yourself."
-					response.SendOnExisting(conn)
-					conn.Close()
-					return
-				}
 				memReq := network.Request{
 					Target:  req.CommandTarget,
-					Source:  req.Source,
+					Source:  Source(mynetwork),
 					Command: "membershipRequest",
 					State:   "response",
 				}
@@ -86,6 +78,8 @@ func handleConn(conn net.Conn) {
 				if resReq.Success {
 					mynetwork = mynetwork.AddNodeOnExisting(memConn, req.CommandTarget)
 					fmt.Printf("`%s` joined your network!\n", req.CommandTarget)
+					// node, _ := mynetwork.FindNode(req.CommandTarget)
+					// go node.Monitor(Source(mynetwork))
 					networkJSON, _ := json.Marshal(mynetwork)
 					response.Success = true
 					response.Body = string(networkJSON)
@@ -100,6 +94,8 @@ func handleConn(conn net.Conn) {
 				if !mynetwork.NodeExists(req.Source) {
 					mynetwork = mynetwork.AddNode(req.Source)
 					fmt.Printf("`%s` joined your network!\n", req.Source)
+					// node, err := mynetwork.FindNode(req.Source)
+					// go node.Monitor(Source(mynetwork))
 					networkJSON, _ := json.Marshal(mynetwork)
 					response.Success = true
 					response.Body = string(networkJSON)
@@ -114,7 +110,7 @@ func handleConn(conn net.Conn) {
 		case "listNodes":
 			networkJSON, _ := json.MarshalIndent(mynetwork, "", "  ")
 			listNodes := network.Request{
-				Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+				Source:  Source(mynetwork),
 				Success: true,
 				Body:    string(networkJSON),
 			}
@@ -134,7 +130,7 @@ func handleConn(conn net.Conn) {
 				} else {
 					pingReq := network.Request{
 						Target:  req.CommandTarget,
-						Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+						Source:  Source(mynetwork),
 						Command: "ping",
 						State:   "response",
 					}
@@ -144,7 +140,6 @@ func handleConn(conn net.Conn) {
 					response.Success = true
 					response.Body = reqRes.Body
 					response.SendOnExisting(conn)
-					conn.Close()
 				}
 			case "response":
 				resp := network.Request{
@@ -168,7 +163,7 @@ func handleConn(conn net.Conn) {
 					node, _ := mynetwork.FindNode(req.CommandTarget)
 					listReq := network.Request{
 						Target:  req.CommandTarget,
-						Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+						Source:  Source(mynetwork),
 						Command: "listFiles",
 						State:   "response",
 					}
@@ -180,7 +175,7 @@ func handleConn(conn net.Conn) {
 					conn.Close()
 				}
 			case "response":
-				files := network.ListFiles(config.SharedDirectory)
+				files := network.ListFiles(mynetwork.Config.SharedDirectory)
 				var shared_files network.SharedFileList
 				for _, file := range files {
 					shared_files.Files = append(shared_files.Files, file)
@@ -206,30 +201,33 @@ func handleConn(conn net.Conn) {
 					return
 				}
 				dReq := network.Request{
-					Source:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
+					Source:  Source(mynetwork),
 					Target:  req.CommandTarget,
 					Command: "download",
 					State:   "response",
 					Args:    req.Args,
 				}
 				fmt.Printf("\nSending using Conn: %s", node.Conn.LocalAddr())
-				network.Download(node, dReq, config.SharedDirectory)
+				network.Download(node, dReq, mynetwork.Config.SharedDirectory)
 				response.Success = true
 				response.Body = fmt.Sprintf("Successfully downloaded file `%s`", req.Args)
 				response.SendOnExisting(conn)
 				conn.Close()
 			case "response":
 				fileName := strings.TrimSpace(req.Args)
-				shared_dir := config.SharedDirectory
+				shared_dir := mynetwork.Config.SharedDirectory
 				path_to_file := fmt.Sprintf("%s/%s", shared_dir, fileName)
 				network.SendFileToClient(conn, req, path_to_file)
-				// conn.Close()
 			}
 		default:
 			fmt.Printf("DAta: `%s`", req.String())
 			conn.Close()
 		}
 	}
+}
+
+func Source(n network.Network) string {
+	return fmt.Sprintf("%s:%s", n.Config.Hostname, n.Config.Port)
 }
 
 func ListenerInterface(port string) (*net.TCPListener, error) {
