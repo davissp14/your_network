@@ -1,10 +1,7 @@
 package network
 
 import (
-	"bufio"
 	"encoding/json"
-	"fmt"
-	"net"
 )
 
 type Request struct {
@@ -19,6 +16,58 @@ type Request struct {
 	Client        bool   `json:"client"`
 }
 
+func (r Request) Membership(incoming Connection, network *Network) {
+	switch r.State {
+	case "request":
+		req := Request{
+			Source:  r.Source,
+			Target:  r.CommandTarget,
+			Command: "membership",
+			State:   "response",
+		}
+		// Ensure node doesn't already exist in network.
+		if network.NodeExists(r.CommandTarget) {
+			incoming.SendResponse("Node already exists in network", false)
+			return
+		}
+		// Initiate connection with target node.
+		outgoing, err := NewConnection(r.CommandTarget)
+		if err != nil {
+			incoming.SendResponse("Failed to establish connection.", false)
+			return
+		}
+		// Attempt to establish connection.
+		outgoing.Send(req)
+		// Wait for response from target node.
+		res := outgoing.Receive()
+		if !res.Success {
+			incoming.SendResponse(res.Body, false)
+			return
+		}
+		// Add node to network.
+		network.AddNode(outgoing)
+		networkJSON, _ := json.Marshal(network)
+		incoming.SendResponse(string(networkJSON), true)
+	case "response":
+		if network.NodeExists(r.Source) {
+			incoming.SendResponse("Node already exists in network", false)
+			return
+		}
+		outgoing, _ := NewConnection(r.Source)
+		network.AddNode(outgoing)
+		networkJSON, _ := json.Marshal(network)
+		incoming.SendResponse(string(networkJSON), true)
+		return
+	default:
+		incoming.SendResponse("You shouldn't be here!", false)
+	}
+}
+
+func (r Request) ListNodes(incoming Connection, network *Network) {
+	networkJSON, _ := json.MarshalIndent(network, "", "  ")
+	incoming.SendResponse(string(networkJSON), true)
+}
+
 func (r Request) String() string {
 	reqJSON, _ := json.Marshal(r)
 	return string(reqJSON)
@@ -31,41 +80,4 @@ func ParseRequest(raw string) (Request, error) {
 		req.State = "new"
 	}
 	return req, nil
-}
-
-func (r Request) BlockingSend() (net.Conn, error) {
-	json, _ := json.Marshal(r)
-	conn, err := net.Dial("tcp", r.Target)
-	if err != nil {
-		return nil, err
-	}
-	writer := bufio.NewWriter(conn)
-	fmt.Fprintln(writer, string(json))
-	err = writer.Flush()
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
-}
-
-func (r Request) BlockingRead(conn net.Conn) Request {
-	var req Request
-	reader := bufio.NewReader(conn)
-	for {
-		data, _ := reader.ReadString('\n')
-		if data == "" {
-			break
-		}
-		json.Unmarshal([]byte(data), &req)
-		return req
-	}
-	return req
-}
-
-func (r Request) SendOnExisting(conn net.Conn) error {
-	json, _ := json.Marshal(r)
-	writer := bufio.NewWriter(conn)
-	fmt.Fprintln(writer, string(json))
-	err := writer.Flush()
-	return err
 }

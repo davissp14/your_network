@@ -15,21 +15,21 @@ func main() {
 	// initCommand := flag.NewFlagSet("init", flag.ExitOnError)
 	addNodeCommand := flag.NewFlagSet("add_node", flag.ExitOnError)
 	listNodesCommand := flag.NewFlagSet("list_nodes", flag.ExitOnError)
-	pingCommand := flag.NewFlagSet("ping", flag.ExitOnError)
-	listFilesCommand := flag.NewFlagSet("list_files", flag.ExitOnError)
-	downloadCommand := flag.NewFlagSet("download", flag.ExitOnError)
+	// pingCommand := flag.NewFlagSet("ping", flag.ExitOnError)
+	// listFilesCommand := flag.NewFlagSet("list_files", flag.ExitOnError)
+	// downloadCommand := flag.NewFlagSet("download", flag.ExitOnError)
 
 	// Server subcommands
 	serverConfigPtr := serverCommand.String("config", "./config.json", "Configuration file (Required)")
 	// Add node subcommands
 	addNodeHostnamePtr := addNodeCommand.String("node", "", "Target node. e.g. '192.168.1.4:4000'. (Required)")
 	// Ping subcommands
-	pingHostnamePtr := pingCommand.String("node", "", "Target node. e.g. '192.168.1.4:4000'. (Required)")
-	// List files subcommmands
-	listFilesHostnamePtr := listFilesCommand.String("node", "", "Target node. '192.168.1.4:4000'. (Required)")
-	// Download subcommands
-	downloadHostnamePtr := downloadCommand.String("node", "", "Target node. '192.168.1.4:4000'. (Required)")
-	downloadFilenamePtr := downloadCommand.String("filename", "", "Filename you want to download. (Required)")
+	// pingHostnamePtr := pingCommand.String("node", "", "Target node. e.g. '192.168.1.4:4000'. (Required)")
+	// // List files subcommmands
+	// listFilesHostnamePtr := listFilesCommand.String("node", "", "Target node. '192.168.1.4:4000'. (Required)")
+	// // Download subcommands
+	// downloadHostnamePtr := downloadCommand.String("node", "", "Target node. '192.168.1.4:4000'. (Required)")
+	// downloadFilenamePtr := downloadCommand.String("filename", "", "Filename you want to download. (Required)")
 
 	if len(os.Args) < 2 {
 		fmt.Printf(
@@ -62,12 +62,12 @@ ping:       Ping Remote / Local node within your network.
 		addNodeCommand.Parse(os.Args[2:])
 	case "list_nodes":
 		listNodesCommand.Parse(os.Args[2:])
-	case "list_files":
-		listFilesCommand.Parse(os.Args[2:])
-	case "download":
-		downloadCommand.Parse(os.Args[2:])
-	case "ping":
-		pingCommand.Parse(os.Args[2:])
+	// case "list_files":
+	// 	listFilesCommand.Parse(os.Args[2:])
+	// case "download":
+	// 	downloadCommand.Parse(os.Args[2:])
+	// case "ping":
+	// 	pingCommand.Parse(os.Args[2:])
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -102,33 +102,33 @@ ping:       Ping Remote / Local node within your network.
 	if listNodesCommand.Parsed() {
 		cl.ListNodes()
 	}
-
-	if listFilesCommand.Parsed() {
-		if *listFilesHostnamePtr == "" {
-			listFilesCommand.PrintDefaults()
-			os.Exit(1)
-		}
-		cl.ListFiles(strings.TrimSpace(*listFilesHostnamePtr))
-	}
-
-	if downloadCommand.Parsed() {
-		if *downloadFilenamePtr == "" || *downloadHostnamePtr == "" {
-			downloadCommand.PrintDefaults()
-			os.Exit(1)
-		}
-		cl.Download(
-			strings.TrimSpace(*downloadHostnamePtr),
-			strings.TrimSpace(*downloadFilenamePtr),
-		)
-	}
-
-	if pingCommand.Parsed() {
-		if *pingHostnamePtr == "" {
-			pingCommand.PrintDefaults()
-			os.Exit(1)
-		}
-		cl.Ping(*pingHostnamePtr)
-	}
+	//
+	// if listFilesCommand.Parsed() {
+	// 	if *listFilesHostnamePtr == "" {
+	// 		listFilesCommand.PrintDefaults()
+	// 		os.Exit(1)
+	// 	}
+	// 	cl.ListFiles(strings.TrimSpace(*listFilesHostnamePtr))
+	// }
+	//
+	// if downloadCommand.Parsed() {
+	// 	if *downloadFilenamePtr == "" || *downloadHostnamePtr == "" {
+	// 		downloadCommand.PrintDefaults()
+	// 		os.Exit(1)
+	// 	}
+	// 	cl.Download(
+	// 		strings.TrimSpace(*downloadHostnamePtr),
+	// 		strings.TrimSpace(*downloadFilenamePtr),
+	// 	)
+	// }
+	//
+	// if pingCommand.Parsed() {
+	// 	if *pingHostnamePtr == "" {
+	// 		pingCommand.PrintDefaults()
+	// 		os.Exit(1)
+	// 	}
+	// 	cl.Ping(*pingHostnamePtr)
+	// }
 
 }
 

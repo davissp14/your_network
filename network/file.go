@@ -34,15 +34,14 @@ func ListFiles(dir string) []string {
 const BUFFERSIZE = 1024
 
 func Download(node Node, req Request, shared_dir string) {
-	connection := node.Conn
-
-	req.SendOnExisting(connection)
+	conn := node.Connection
+	conn.Send(req)
 	bufferFileName := make([]byte, 64)
 	bufferFileSize := make([]byte, 10)
 
-	connection.Read(bufferFileSize)
+	conn.Conn.Read(bufferFileSize)
 	fileSize, _ := strconv.ParseInt(strings.Trim(string(bufferFileSize), ":"), 10, 64)
-	connection.Read(bufferFileName)
+	conn.Conn.Read(bufferFileName)
 	fileName := strings.Trim(string(bufferFileName), ":")
 	newFile, err := os.Create(fmt.Sprintf("%s/%s", shared_dir, fileName))
 	if err != nil {
@@ -54,11 +53,11 @@ func Download(node Node, req Request, shared_dir string) {
 	percentage = 0
 	for {
 		if (fileSize - receivedBytes) < BUFFERSIZE {
-			io.CopyN(newFile, connection, (fileSize - receivedBytes))
-			connection.Read(make([]byte, (receivedBytes+BUFFERSIZE)-fileSize))
+			io.CopyN(newFile, conn.Conn, (fileSize - receivedBytes))
+			conn.Conn.Read(make([]byte, (receivedBytes+BUFFERSIZE)-fileSize))
 			break
 		}
-		io.CopyN(newFile, connection, BUFFERSIZE)
+		io.CopyN(newFile, conn.Conn, BUFFERSIZE)
 		receivedBytes += BUFFERSIZE
 		fmt.Println(receivedBytes)
 		if (float32(receivedBytes) / float32(fileSize) * 100) > float32(percentage+5) {
@@ -70,7 +69,7 @@ func Download(node Node, req Request, shared_dir string) {
 	fmt.Printf("\nFile `%s` stored at `%s`!", fileName, shared_dir)
 }
 
-func SendFileToClient(connection net.Conn, req Request, pathToFile string) {
+func SendFileToClient(conn Connection, req Request, pathToFile string) {
 	if _, err := os.Stat(pathToFile); os.IsNotExist(err) {
 		fmt.Printf("\nFilename doesn't exist at path: %s", pathToFile)
 		return
@@ -87,8 +86,8 @@ func SendFileToClient(connection net.Conn, req Request, pathToFile string) {
 	}
 	fileSize := fillString(strconv.FormatInt(fileInfo.Size(), 10), 10)
 	fileName := fillString(fileInfo.Name(), 64)
-	connection.Write([]byte(fileSize))
-	connection.Write([]byte(fileName))
+	conn.Conn.Write([]byte(fileSize))
+	conn.Conn.Write([]byte(fileName))
 	fS := strings.Replace(fileSize, ":", "", -1)
 	fN := strings.Replace(fileName, ":", "", -1)
 	fmt.Printf("\nSending file `%s` (%s Bytes)", fN, fS)
@@ -103,9 +102,9 @@ func SendFileToClient(connection net.Conn, req Request, pathToFile string) {
 				if err == io.EOF {
 					break
 				}
-				connection.Write(sendBuffer)
+				conn.Write(sendBuffer)
 			}
-		}(connection)
+		}(conn.Conn)
 
 	}
 	// fmt.Printf("\nSuccessfully sent `%s`!", fN)

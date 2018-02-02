@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
-	"strings"
 	"your_network/configuration"
 )
 
@@ -16,6 +14,15 @@ const NETWORKFILE = "./network.json"
 type Network struct {
 	Nodes  []Node                      `json:"nodes"`
 	Config configuration.Configuration `json:"-"`
+}
+
+func (n *Network) HandleRequest(connection Connection, req Request) {
+	switch req.Command {
+	case "membership":
+		req.Membership(connection, n)
+	case "list_nodes":
+		req.ListNodes(connection, n)
+	}
 }
 
 func (n Network) Init() {
@@ -47,14 +54,8 @@ func Load(n Network, config configuration.Configuration) {
 			Target:  fmt.Sprintf("%s:%s", config.Hostname, config.Port),
 			Command: "init_connection",
 		}
-		req.BlockingSend()
-		// conn, err := net.Dial("tcp4", node.Hostname)
-		// if err != nil {
-		// 	fmt.Printf("\nFailed to establish connection with %s", node.Hostname)
-		// 	os.Exit(1)
-		// }
-		// fmt.Printf("\nEstablish connection with %s - %s", node.Identifier, node.Hostname)
-		// n.Nodes[i].Conn = conn
+		conn, _ := NewConnection(req.Target)
+		conn.Send(req)
 	}
 }
 
@@ -79,7 +80,7 @@ func (n Network) FindNode(target string) (Node, error) {
 
 func (n Network) NodeExists(target string) bool {
 	for _, nNode := range n.Nodes {
-		fmt.Printf("`%s` == `%s`", nNode.Hostname, target)
+		// fmt.Printf("`%s` == `%s`", nNode.Hostname, target)
 		if nNode.Hostname == target {
 			return true
 		}
@@ -87,31 +88,13 @@ func (n Network) NodeExists(target string) bool {
 	return false
 }
 
-func (n Network) AddNodeOnExisting(conn net.Conn, hostname string) *Network {
-	uri := strings.TrimSpace(hostname)
+func (n *Network) AddNode(connection Connection) {
 	node := Node{
-		Hostname: uri,
-		Conn:     conn,
+		Hostname:   connection.Hostname,
+		Connection: connection,
 	}
 	n.Nodes = append(n.Nodes, node)
 	n.Update()
-	return &n
-}
-
-func (n Network) AddNode(hostname string) *Network {
-	uri := strings.TrimSpace(hostname)
-	conn, err := net.Dial("tcp4", uri)
-	if err != nil {
-		fmt.Printf("\nFailed to establish connection with %s", uri)
-		os.Exit(1)
-	}
-	node := Node{
-		Hostname: hostname,
-		Conn:     conn,
-	}
-	n.Nodes = append(n.Nodes, node)
-	n.Update()
-	return &n
 }
 
 //

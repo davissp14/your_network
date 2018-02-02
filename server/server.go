@@ -46,8 +46,8 @@ func handleConn(conn net.Conn) {
 			fmt.Println(err)
 			break
 		}
-		cmd := NewCommand(&mynetwork, req, conn)
-		cmd.Handle()
+		connection := network.Connection{Conn: conn}
+		mynetwork.HandleRequest(connection, req)
 		if req.Client {
 			conn.Close()
 		}
