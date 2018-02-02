@@ -16,6 +16,7 @@ type Request struct {
 	State         string `json:"state"`
 	Body          string `json:"body"`
 	Success       bool   `json:"success"`
+	Client        bool   `json:"client"`
 }
 
 func (r Request) String() string {
@@ -61,12 +62,10 @@ func (r Request) BlockingRead(conn net.Conn) Request {
 	return req
 }
 
-func (r Request) SendOnExisting(conn net.Conn) {
+func (r Request) SendOnExisting(conn net.Conn) error {
 	json, _ := json.Marshal(r)
 	writer := bufio.NewWriter(conn)
 	fmt.Fprintln(writer, string(json))
 	err := writer.Flush()
-	if err != nil {
-		fmt.Printf("Failed to flush write to %s: Error: %s", r.Target, err)
-	}
+	return err
 }

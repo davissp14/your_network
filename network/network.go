@@ -87,7 +87,7 @@ func (n Network) NodeExists(target string) bool {
 	return false
 }
 
-func (n Network) AddNodeOnExisting(conn net.Conn, hostname string) Network {
+func (n Network) AddNodeOnExisting(conn net.Conn, hostname string) *Network {
 	uri := strings.TrimSpace(hostname)
 	node := Node{
 		Hostname: uri,
@@ -95,10 +95,10 @@ func (n Network) AddNodeOnExisting(conn net.Conn, hostname string) Network {
 	}
 	n.Nodes = append(n.Nodes, node)
 	n.Update()
-	return n
+	return &n
 }
 
-func (n Network) AddNode(hostname string) Network {
+func (n Network) AddNode(hostname string) *Network {
 	uri := strings.TrimSpace(hostname)
 	conn, err := net.Dial("tcp4", uri)
 	if err != nil {
@@ -111,7 +111,7 @@ func (n Network) AddNode(hostname string) Network {
 	}
 	n.Nodes = append(n.Nodes, node)
 	n.Update()
-	return n
+	return &n
 }
 
 //

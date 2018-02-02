@@ -24,8 +24,9 @@ func (c Client) AddNode(target string) {
 	memReq := network.Request{
 		Target:        c.Self(),
 		CommandTarget: target,
-		Command:       "membershipRequest",
+		Command:       "membership",
 		State:         "request",
+		Client:        true,
 	}
 	conn, err := memReq.BlockingSend()
 	if err != nil {
@@ -40,6 +41,7 @@ func (c Client) ListNodes() {
 	listReq := network.Request{
 		Target:  c.Self(),
 		Command: "listNodes",
+		Client:  true,
 	}
 	conn, err := listReq.BlockingSend()
 	if err != nil {
@@ -56,6 +58,7 @@ func (c Client) ListFiles(hostname string) {
 		CommandTarget: hostname,
 		Command:       "listFiles",
 		State:         "request",
+		Client:        true,
 	}
 	conn, err := listReq.BlockingSend()
 	if err != nil {
@@ -73,6 +76,7 @@ func (c Client) Download(target string, filename string) {
 		Command:       "download",
 		State:         "request",
 		Args:          filename,
+		Client:        true,
 	}
 	conn, err := downloadReq.BlockingSend()
 	if err != nil {
@@ -89,6 +93,7 @@ func (c Client) Ping(target string) {
 		CommandTarget: target,
 		Command:       "ping",
 		State:         "request",
+		Client:        true,
 	}
 	conn, err := pingReq.BlockingSend()
 	if err != nil {
