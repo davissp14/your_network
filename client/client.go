@@ -13,6 +13,10 @@ type Client struct {
 }
 
 func (c Client) StartServer() {
+	if c.Config.Alias == "" {
+		fmt.Println("Please specify an Alias!")
+		os.Exit(1)
+	}
 	server.Start(c.Config)
 }
 
@@ -22,30 +26,51 @@ func (c Client) AddNode(target string) {
 		os.Exit(1)
 	}
 	req := network.Request{
-		Target:        c.Self(),
-		Source:        c.Self(),
 		CommandTarget: target,
 		Command:       "membership",
 		State:         "request",
-		Client:        true,
 	}
-	conn, err := network.NewConnection(c.Self())
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	conn.Send(req)
-	res := conn.Receive()
-	fmt.Println(res.Body)
+	c.Send(req)
 }
 
 func (c Client) ListNodes() {
 	req := network.Request{
-		Target:  c.Self(),
-		Source:  c.Self(),
 		Command: "list_nodes",
-		Client:  true,
 	}
+	c.Send(req)
+}
+
+func (c Client) ListFiles(hostname string) {
+	req := network.Request{
+		CommandTarget: hostname,
+		Command:       "list_files",
+		State:         "request",
+	}
+	c.Send(req)
+}
+
+func (c Client) Download(target string, filename string) {
+	req := network.Request{
+		CommandTarget: target,
+		Command:       "download",
+		State:         "request",
+		Args:          filename,
+	}
+	c.Send(req)
+}
+
+func (c Client) Ping(target string) {
+	req := network.Request{
+		CommandTarget: target,
+		Command:       "ping",
+		State:         "request",
+	}
+	c.Send(req)
+}
+
+func (c Client) Send(req network.Request) {
+	req.Source = c.Self()
+	req.Client = true
 	conn, err := network.NewConnection(c.Self())
 	if err != nil {
 		fmt.Println(err)
@@ -55,59 +80,6 @@ func (c Client) ListNodes() {
 	res := conn.Receive()
 	fmt.Println(res.Body)
 }
-
-//
-// func (c Client) ListFiles(hostname string) {
-// 	listReq := network.Request{
-// 		Target:        c.Self(),
-// 		CommandTarget: hostname,
-// 		Command:       "listFiles",
-// 		State:         "request",
-// 		Client:        true,
-// 	}
-// 	conn, err := listReq.BlockingSend()
-// 	if err != nil {
-// 		fmt.Println(err)
-// 		os.Exit(1)
-// 	}
-// 	req := listReq.BlockingRead(conn)
-// 	fmt.Println(req.Body)
-// }
-//
-// func (c Client) Download(target string, filename string) {
-// 	downloadReq := network.Request{
-// 		Target:        c.Self(),
-// 		CommandTarget: target,
-// 		Command:       "download",
-// 		State:         "request",
-// 		Args:          filename,
-// 		Client:        true,
-// 	}
-// 	conn, err := downloadReq.BlockingSend()
-// 	if err != nil {
-// 		fmt.Println(err)
-// 		os.Exit(1)
-// 	}
-// 	req := downloadReq.BlockingRead(conn)
-// 	fmt.Println(req.Body)
-// }
-//
-// func (c Client) Ping(target string) {
-// 	pingReq := network.Request{
-// 		Target:        c.Self(),
-// 		CommandTarget: target,
-// 		Command:       "ping",
-// 		State:         "request",
-// 		Client:        true,
-// 	}
-// 	conn, err := pingReq.BlockingSend()
-// 	if err != nil {
-// 		fmt.Println(err)
-// 		os.Exit(1)
-// 	}
-// 	req := pingReq.BlockingRead(conn)
-// 	fmt.Println(req.Body)
-// }
 
 func (c Client) Self() string {
 	return fmt.Sprintf("%s:%s", c.Config.Hostname, c.Config.Port)

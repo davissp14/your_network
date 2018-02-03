@@ -9,12 +9,20 @@ import (
 	"your_network/configuration"
 )
 
-const NETWORKFILE = "./network.json"
-
 type Network struct {
 	Nodes  []Node                      `json:"nodes"`
 	Config configuration.Configuration `json:"-"`
 }
+
+type Node struct {
+	Hostname   string     `json:"hostname"`
+	Alias      string     `json:"alias"`
+	MacAddr    string     `json:"-"`
+	PublicKey  string     `json:"-"`
+	Connection Connection `json:"-"`
+}
+
+const NETWORKFILE = "./network.json"
 
 func (n *Network) HandleRequest(connection Connection, req Request) {
 	switch req.Command {
@@ -22,6 +30,12 @@ func (n *Network) HandleRequest(connection Connection, req Request) {
 		req.Membership(connection, n)
 	case "list_nodes":
 		req.ListNodes(connection, n)
+	case "list_files":
+		req.ListFiles(connection, n)
+	case "download":
+		req.Download(connection, n)
+	case "ping":
+		req.Ping(connection, n)
 	}
 }
 
@@ -69,13 +83,13 @@ func (n Network) Update() Network {
 	return n
 }
 
-func (n Network) FindNode(target string) (Node, error) {
-	for _, nNode := range n.Nodes {
-		if nNode.Hostname == target {
-			return nNode, nil
+func (n Network) FindConnection(target string) (Connection, error) {
+	for _, node := range n.Nodes {
+		if node.Hostname == target {
+			return node.Connection, nil
 		}
 	}
-	return Node{}, errors.New("Could not find node.")
+	return Connection{}, errors.New("Could not find connection.")
 }
 
 func (n Network) NodeExists(target string) bool {
@@ -96,30 +110,3 @@ func (n *Network) AddNode(connection Connection) {
 	n.Nodes = append(n.Nodes, node)
 	n.Update()
 }
-
-//
-// func (c Cluster) MemberHosts() []string {
-// 	var list []string
-// 	for _, member := range c.Members {
-// 		list = append(list, member.Hostname)
-// 	}
-// 	return list
-// }
-//
-// func (c Cluster) FindMember(hostname string) (Member, error) {
-// 	for _, m := range c.Members {
-// 		if m.Hostname == hostname {
-// 			return m, nil
-// 		}
-// 	}
-// 	return Member{}, errors.New("Member not found")
-// }
-//
-// func (c Cluster) MemberExists(hostname string) bool {
-// 	for _, m := range c.Members {
-// 		if m.Hostname == hostname {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }

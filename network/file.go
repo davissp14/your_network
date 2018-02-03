@@ -3,7 +3,6 @@ package network
 import (
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -33,8 +32,7 @@ func ListFiles(dir string) []string {
 
 const BUFFERSIZE = 1024
 
-func Download(node Node, req Request, shared_dir string) {
-	conn := node.Connection
+func Download(conn Connection, req Request, shared_dir string) {
 	conn.Send(req)
 	bufferFileName := make([]byte, 64)
 	bufferFileSize := make([]byte, 10)
@@ -69,7 +67,7 @@ func Download(node Node, req Request, shared_dir string) {
 	fmt.Printf("\nFile `%s` stored at `%s`!", fileName, shared_dir)
 }
 
-func SendFileToClient(conn Connection, req Request, pathToFile string) {
+func SendFileToClient(conn Connection, pathToFile string) {
 	if _, err := os.Stat(pathToFile); os.IsNotExist(err) {
 		fmt.Printf("\nFilename doesn't exist at path: %s", pathToFile)
 		return
@@ -88,26 +86,14 @@ func SendFileToClient(conn Connection, req Request, pathToFile string) {
 	fileName := fillString(fileInfo.Name(), 64)
 	conn.Conn.Write([]byte(fileSize))
 	conn.Conn.Write([]byte(fileName))
-	fS := strings.Replace(fileSize, ":", "", -1)
-	fN := strings.Replace(fileName, ":", "", -1)
-	fmt.Printf("\nSending file `%s` (%s Bytes)", fN, fS)
-
-	gofuncs := int64(16)
-
-	for num := int64(0); num < gofuncs; num++ {
-		go func(conn net.Conn) {
-			sendBuffer := make([]byte, 4096)
-			for {
-				_, err = file.Read(sendBuffer)
-				if err == io.EOF {
-					break
-				}
-				conn.Write(sendBuffer)
-			}
-		}(conn.Conn)
-
+	sendBuffer := make([]byte, 4096)
+	for {
+		_, err = file.Read(sendBuffer)
+		if err == io.EOF {
+			break
+		}
+		conn.Conn.Write(sendBuffer)
 	}
-	// fmt.Printf("\nSuccessfully sent `%s`!", fN)
 	return
 }
 

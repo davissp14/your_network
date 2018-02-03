@@ -10,6 +10,7 @@ import (
 
 type Configuration struct {
 	Hostname        string `json:"hostname"`
+	Alias           string `json:"alias"`
 	Port            string `json:"port"`
 	SharedDirectory string `json:"shared_directory"`
 }
@@ -20,6 +21,7 @@ func Init() error {
 	config := Configuration{
 		Hostname:        "127.0.0.1",
 		Port:            "4000",
+		Alias:           "127.0.0.1",
 		SharedDirectory: SHARED_DIR,
 	}
 	fmt.Println("Creating `config.json` file.")
@@ -38,13 +40,12 @@ func Init() error {
 	return nil
 }
 
-func Load(path_to_config string) (Configuration, error) {
-	raw, err := ioutil.ReadFile(path_to_config)
+func Load(pathToConfig string) (Configuration, error) {
+	raw, err := ioutil.ReadFile(pathToConfig)
 	var config Configuration
 	if err != nil {
 		return config, errors.New(err.Error())
 	}
 	json.Unmarshal(raw, &config)
-
 	return config, nil
 }
