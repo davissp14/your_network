@@ -12,7 +12,6 @@ import (
 func main() {
 	// Subcommands
 	serverCommand := flag.NewFlagSet("server", flag.ExitOnError)
-	initCommand := flag.NewFlagSet("init", flag.ExitOnError)
 	addNodeCommand := flag.NewFlagSet("add_node", flag.ExitOnError)
 	listNodesCommand := flag.NewFlagSet("list_nodes", flag.ExitOnError)
 	pingCommand := flag.NewFlagSet("ping", flag.ExitOnError)
