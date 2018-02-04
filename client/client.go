@@ -13,10 +13,6 @@ type Client struct {
 }
 
 func (c Client) StartServer() {
-	if c.Config.Alias == "" {
-		fmt.Println("Please specify an Alias!")
-		os.Exit(1)
-	}
 	server.Start(c.Config)
 }
 
