@@ -63,8 +63,8 @@ ping:       Ping Remote / Local node within your network.
 		listNodesCommand.Parse(os.Args[2:])
 	case "list_files":
 		listFilesCommand.Parse(os.Args[2:])
-	// case "download":
-	// 	downloadCommand.Parse(os.Args[2:])
+	case "download":
+		downloadCommand.Parse(os.Args[2:])
 	case "ping":
 		pingCommand.Parse(os.Args[2:])
 	default:
